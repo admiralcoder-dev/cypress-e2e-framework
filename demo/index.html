@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdmiralCoder Inventory Demo</title>
+<style>
+  body {font: 16px system-ui,sans-serif; max-width: 760px; margin: 40px auto; padding: 0 20px; color: #15223b;}
+  h1 {font-size: 2rem;} form {display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}
+  label {display:grid;gap:5px} input,button {padding:10px;font:inherit;border-radius:7px;border:1px solid #8b98aa}
+  button {background:#134bb3;color:white;cursor:pointer;border:0}
+  li {display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #dce2ed}
+  .error {color:#a01212} .muted {color:#56647c}
+</style>
+</head>
+<body>
+<main>
+<h1>Inventory Demo</h1>
+<p class="muted">A deterministic test application for AdmiralCoder Cypress automation.</p>
+<label>Search inventory <input data-testid="search" type="search" placeholder="Search items"></label>
+<form data-testid="item-form" novalidate>
+<label>Item name <input data-testid="name" required maxlength="100"></label>
+<label>Quantity <input data-testid="quantity" type="number" min="0" step="1" required></label>
+<button type="submit" data-testid="add">Add item</button>
+</form>
+<p role="alert" data-testid="message"></p>
+<ul data-testid="items" aria-label="Inventory items"></ul>
+<p data-testid="empty" class="muted" hidden>No items found</p>
+</main>
+<script>
+const $ = (selector) => document.querySelector(selector);
+let items = [];
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const message = (text, error = false) => { $('[data-testid="message"]').textContent = text; $('[data-testid="message"]').className = error ? 'error' : ''; };
+function render() {
+  const q = $('[data-testid="search"]').value.trim().toLowerCase();
+  const visible = items.filter(item => item.name.toLowerCase().includes(q));
+  $('[data-testid="items"]').innerHTML = visible.map(item =>
+    `<li data-testid="item" data-id="${escapeHtml(item.id)}"><span>${escapeHtml(item.name)} — ${item.quantity}</span><button data-testid="delete" data-id="${escapeHtml(item.id)}" aria-label="Delete ${escapeHtml(item.name)}">Delete</button></li>`
+  ).join('');
+  $('[data-testid="empty"]').hidden = visible.length !== 0;
+}
+async function load() {
+  try {
+    const response = await fetch('/api/items');
+    if (!response.ok) throw new Error('Inventory unavailable');
+    items = (await response.json()).data;
+    message('');
+    render();
+  } catch { items = []; render(); message('Unable to load inventory', true); }
+}
+$('[data-testid="search"]').addEventListener('input', render);
+$('[data-testid="item-form"]').addEventListener('submit', async event => {
+  event.preventDefault();
+  const name = $('[data-testid="name"]').value.trim();
+  const quantityText = $('[data-testid="quantity"]').value;
+  const quantity = Number(quantityText);
+  if (!name || quantityText === '' || !Number.isInteger(quantity) || quantity < 0) {
+    return message('Enter a valid item name and non-negative whole-number quantity', true);
+  }
+  try {
+    const response = await fetch('/api/items', { method: 'POST', headers: { 'content-type':'application/json' }, body: JSON.stringify({ name, quantity }) });
+    if (!response.ok) throw new Error('Save failed');
+    items.push((await response.json()).data);
+    $('[data-testid="item-form"]').reset();
+    message('Item added');
+    render();
+  } catch { message('Unable to save item', true); }
+});
+$('[data-testid="items"]').addEventListener('click', async event => {
+  const button = event.target.closest('[data-testid="delete"]');
+  if (!button) return;
+  try {
+    const response = await fetch('/api/items/' + encodeURIComponent(button.dataset.id), { method: 'DELETE' });
+    if (!response.ok) throw new Error('Delete failed');
+    items = items.filter(item => item.id !== button.dataset.id);
+    message('Item deleted');
+    render();
+  } catch { message('Unable to delete item', true); }
+});
+load();
+</script>
+</body>
+</html>
