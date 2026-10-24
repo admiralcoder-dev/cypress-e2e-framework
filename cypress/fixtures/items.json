@@ -1,0 +1,14 @@
+{
+  "data": [
+    {
+      "id": "fixture-coffee",
+      "name": "Coffee",
+      "quantity": 4
+    },
+    {
+      "id": "fixture-tea",
+      "name": "Tea",
+      "quantity": 6
+    }
+  ]
+}
