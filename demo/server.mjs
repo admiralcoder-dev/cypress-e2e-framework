@@ -16,7 +16,7 @@ async function body(req) {
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1');
   const method = req.method;
-  if (method === 'GET' && url.pathname === '/health') return send(res, 200, { status: 'ok' });
+  if ((method === 'GET' || method === 'HEAD') && url.pathname === '/health') return send(res, 200, { status: 'ok' });
   if (method === 'GET' && url.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
     return res.end(await readFile(new URL('./index.html', import.meta.url)));
